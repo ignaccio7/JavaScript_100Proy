@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monkey Type</title>
+    <style>
+      :root {
+        --green: #00b755;
+        --yellow: #daaf38;
+        --red: #ca4754;
+        --black: #222;
+        --gray: #999;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        box-sizing: inherit;
+        font-family: monospace;
+        color-scheme: light dark;
+      }
+      body{
+        background-color: var(--black);
+        display: grid;        
+        padding: 32px;
+        place-content: center;
+      }
+      #game {
+        max-width: 500px;
+      }
+      time{
+        color: var(--yellow);
+      }
+      p{
+        margin: 5px 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      letter {
+        color: var(--gray);
+        position: relative;
+
+        &.active::before{
+          content: '|';
+          color: var(--yellow);
+          font-size: 14px;
+          position: absolute;
+          left: -65%;
+          animation: 1.2s expand infinite ease-in-out;
+        }
+        &.active.is-last::before{
+          left: 65%;
+        }
+
+        &.correct {
+          color: var(--green);
+        }
+        &.incorrect {
+          color: var(--red);
+        }
+      }
+
+      word {
+        border-bottom: 2px solid transparent;
+
+        &.marked {
+          border-bottom: 2px solid var(--red);
+        }
+      }
+
+      @keyframes expand {        
+        0%, 100%{
+          transform: scale(0);
+        }
+        50%{
+          transform: scale(1);
+        }
+      }
+
+      #game{
+        display: flex;
+        flex-direction: column;
+      }
+      input{
+        position: absolute;
+        pointer-events: none;
+        opacity: 0;
+        z-index: -999;
+        top: 0;
+        left: 0;
+      }
+      #results { 
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+      }
+      h2{
+        font-weight: 400;
+        opacity: .4;
+        margin: 0;
+        font-size: 2rem;
+      }
+      h3{
+        font-weight: 400;
+        opacity: .4;
+        margin: 0;
+        font-size: 24px;
+        color: var(--yellow);
+      }
+
+      #reload-button{
+        display: inline-block;        
+        border-radius: 10px;
+        cursor: pointer;
+        opacity: .6;
+        width: fit-content;
+        margin-inline: auto;
+        padding: 5px;
+        transition: transform 1s ease;
+      }
+      #reload-button:hover{
+        transform: scale(1.2);
+      }
+
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>monkeytype</h1>
+      <section id="game">
+        <time>0</time>
+        <p></p>
+        <input type="text" autofocus>
+      </section>
+      <section id="results">
+        <h2>wpm</h2>
+        <h3 id="wpm"></h3>
+
+        <h2>acurracy</h2>
+        <h3 id="acurracy"></h3>
+
+        <button id="reload-button">
+          <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-reload"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19.933 13.041a8 8 0 1 1 -9.925 -8.788c3.899 -1 7.935 1.007 9.425 4.747" /><path d="M20 4v5h-5" /></svg>
+        </button>
+      </section>
+    </main>
+
+    <script type="module">
+      import { words as INITIAL_WORDS } from './data.js'
+
+      const d = document,
+        $time = d.querySelector('time'),
+        $paragraph = d.querySelector('p'),
+        $input = d.querySelector('input'),
+        $game = d.querySelector('#game'),
+        $results = d.querySelector('#results'),
+        $wpm = $results.querySelector('#wpm'),
+        $acurracy = $results.querySelector('#acurracy'),
+        $reloadButton = d.getElementById('reload-button')
+
+      const INITIAL_TIME = 30
+
+      const TEXT = 'typically professional typists type at speeds of 43 to 80 wpm while some positions can require 80 to 95 usually the minimum required for dispatch positions and other time sensitive typing jobs and some advanced typists work at speeds above 120 wpm'
+
+      let words = []
+      let currentTime = INITIAL_TIME
+      
+      function initGame() {
+        $results.style.display = 'none'
+        $game.style.display = 'flex'
+        $input.value = ''
+
+        // words = TEXT.split(' ').slice(0, 32)
+        words = INITIAL_WORDS.toSorted(
+          () => Math.random() - 0.5
+        ).slice(0, 32)
+        currentTime = INITIAL_TIME
+
+        $paragraph.innerHTML = words.map((word, index)=>{
+          const letters = word.split('')
+
+          return `
+          <word>
+            ${letters.map(letter => `<letter>${letter}</letter>`).join('')}  
+          </word>
+          `
+        }).join(' ')
+
+        const $firstWord = $paragraph.querySelector('word'),
+          $firstLetter = $firstWord.querySelector('letter')
+        
+        $firstWord.classList.add('active')
+        $firstLetter.classList.add('active')
+
+        $time.textContent = currentTime
+        let intervalId = setInterval(() => {
+          currentTime--
+          $time.textContent = currentTime
+
+          if (currentTime === 0) {
+            clearInterval(intervalId)
+            gameOver()
+          }
+        }, 1000)
+        
+      }
+
+      function initEvents() {
+        d.addEventListener('keydown', () => {
+          $input.focus()
+        })
+
+        $input.addEventListener('keydown', onKeyDown)
+        $input.addEventListener('keyup', onKeyUp)
+        $reloadButton.addEventListener('click', initGame)
+      }
+
+      function onKeyDown(event) {
+        const $currentWord = $paragraph.querySelector('word.active'),
+          $currentLetter = $currentWord.querySelector('letter.active')
+        
+        const { key } = event
+        // para saber si dimos un espacio
+        if (key === ' ') {
+          event.preventDefault()
+
+          const $nextWord = $currentWord.nextElementSibling
+          const $nextLetter = $nextWord.querySelector('letter')
+
+          $currentWord.classList.remove('active', 'warked')
+          $currentLetter.classList.remove('active')
+
+          $nextWord.classList.add('active')
+          $nextLetter.classList.add('active')
+
+          $input.value = ''
+
+          const hasMissedLetters = $currentWord
+            .querySelectorAll('letter:not(.correct)').length > 0
+          
+          const classToAdd = hasMissedLetters ? 'marked' : 'correct'
+          $currentWord.classList.add(classToAdd)
+          return
+        }
+
+        if(key === 'Backspace') {
+          const $previousWord = $currentWord.previousElementSibling
+          const $previousLetter = $currentLetter.previousElementSibling
+
+          // si esque es la primera palabra
+          if (!$previousWord && !$previousLetter) {
+            event.preventDefault()
+            return
+          }
+
+          const $wordMarked = $paragraph.querySelector('word.marked')
+          if ($wordMarked && !$previousLetter) {
+            event.preventDefault()
+            $previousWord.classList.remove('marked')
+            $previousWord.classList.add('active')
+
+            const $letterToGo = $previousWord.querySelector('letter:last-child')
+
+            $currentLetter.classList.remove('active')
+            $letterToGo.classList.add('active')
+
+            $input.value = [
+              ...$previousWord.querySelectorAll('letter.correct, letter.incorrect')
+            ].map(($el) => {
+              return $el.classList.contains('correct') ? $el.textContent : '*'
+            }).join('')
+          }
+          
+        }
+
+
+      }
+
+      function onKeyUp() {
+        // recuperamos los elementos actuales
+        const $currentWord = $paragraph.querySelector('word.active'),
+          $currentLetter = $currentWord.querySelector('letter.active')
+
+        const currentWord = $currentWord.textContent.trim()
+        console.log({ value: $input.value, currentWord });
+
+        $input.maxLength = currentWord.length // ya que tenemos que comparar palabra por palabra
+
+        // Para obtener la letra de la palabra de la cual debemos comparar
+        const $allLetters = $currentWord.querySelectorAll('letter')
+        $allLetters.forEach($letter => $letter.classList.remove('correct','incorrect','is-last'))
+
+        $input.value.split('').forEach((char, index) => {
+          // Para obtener la letra de la palabra de la cual debemos comparar
+          // const $letter = $currentWord.querySelectorAll('letter')[index]
+          // const $letter = $currentWord.querySelector(`letter:nth-child(${index + 1})`)
+          const $letter = $allLetters[index]
+          const letterToCheck = currentWord[index]
+
+          const isCorrect = char === letterToCheck
+          const letterClass = isCorrect ? 'correct' : 'incorrect'
+          $letter.classList.add(letterClass)
+        })
+        
+        $currentLetter.classList.remove('active')
+        const inputLength = $input.value.length
+        const $nextActiveLetter = $allLetters[inputLength]
+        
+        if ($nextActiveLetter) {
+          $nextActiveLetter.classList.add('active')
+        }else{
+          $currentLetter.classList.add('active','is-last')
+          // TODO: gameover sino existe otra palabra
+        }
+      }
+
+      function gameOver() {
+        console.log('Game Over');
+        $game.style.display = 'none'
+        $results.style.display = 'flex'
+
+        const correctWords = $paragraph.querySelectorAll('word.correct').length
+        const correctLetters = $paragraph.querySelectorAll('letter.correct').length
+        const incorrecLetters = $paragraph.querySelectorAll('letter.incorrect').length
+
+        const totalLetters = correctLetters + incorrecLetters
+        const acurracy = totalLetters > 0
+          ? (correctLetters / totalLetters) * 100
+          : 0
+        // regla de 3
+        // 2 correctas -> 10 seg
+        // x -> 60 seg
+        const wpm = correctWords * 60 / INITIAL_TIME
+        $wpm.textContent = wpm
+        $acurracy.textContent = `${acurracy.toFixed(2)}%`
+      }
+
+      initGame()
+      initEvents()
+
+    </script>
+  </body>
+</html>
