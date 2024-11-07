@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Info-IP</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      body {
+        padding: 1rem 2rem;
+        max-width: 80%;
+        margin-inline: auto;
+      }
+      .info{
+        height: auto;
+        width: 100%;
+      }
+      #result {
+        height: auto;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Info - IP</h1>
+    <form action="" id="form">
+      <label>
+        IP del usuario:
+        <input
+          type="text"
+          name="ip"
+          id="ip"
+          placeholder="Introduzca la IP aqui"
+        />
+        <ssmall>Por ejemplo:54.85.132.205</ssmall>
+      </label>
+      <button type="submit" id="submit">Buscar Informacion</button>
+    </form>
+
+    <div class="info">
+      <pre id="result"></pre>
+    </div>
+
+    <script type="module">
+      async function getInfoIP(ip) {
+        const url =
+          `https://ip-geolocation-find-ip-location-and-ip-info.p.rapidapi.com/backend/ipinfo/?ip=${ip}`;
+        const options = {
+          method: "GET",
+          headers: {
+            "x-rapidapi-key":
+              "893dac56a1mshb8ad0bc821cfa1ap109b7ejsnb0c52bb9164c",
+            "x-rapidapi-host":
+              "ip-geolocation-find-ip-location-and-ip-info.p.rapidapi.com",
+          },
+        };
+
+        try {
+          const response = await fetch(url, options);
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.log(error);
+        }
+      }
+
+      const $ = (selector) => document.querySelector(selector);
+
+      const $form = $("#form"),
+        $submit = $("#submit"),
+        $result = $("#result"),
+        $input = $("#ip");
+
+      $form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const { value } = $input;
+
+        if (value === "") return;
+
+        $submit.setAttribute("aria-busy", "true");
+        $submit.setAttribute("disabled", "");
+        const resp = await getInfoIP(value);
+        $submit.removeAttribute("aria-busy", "true");
+        $submit.removeAttribute("disabled", "");
+
+        console.log(resp)
+        $result.innerHTML = JSON.stringify(resp, null, 2);
+      });
+    </script>
+  </body>
+</html>

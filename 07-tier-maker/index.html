@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Tier Maker</title>
+	<style>
+		:root {
+			--color-s: #ff7f80; /* rojo */
+			--color-a: #ffc07f; /* naranja */
+			--color-b: #ffdf80; /* mostasa */
+			--color-c: #fdff7f; /* amarillo */
+			--color-d: #bfff7f; /* verde claro */
+			--color-e: #7fff7f; /* verde oscuro */
+		}
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+		}
+		html {
+			color-scheme: light dark;
+			font-family: sistem-ui, sans-serif;
+			box-sizing: inherit;
+		}
+		body{
+			margin: 0 auto;
+			max-width: 500px;
+			padding-inline: 32px;
+			user-select: none;
+		}
+		button{
+			background: transparent;
+			border: 0;
+			color:#fff;
+			cursor: pointer;
+		}
+
+		#top-header {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding-block: 8px;
+
+			& img {
+				max-width: 325px;
+				height: auto;
+			}
+		}
+
+		.tier {
+			display: flex;
+			flex-direction: column;		
+			background-color: #1f1f1f;
+		}
+		.row{
+			display: flex;
+			flex-direction: row;
+			border-block: 1px solid #111;
+			transition:all .5s ease-in;
+
+			&.drag-over{
+				background-color: #555;
+				scale: 1.01;
+			}
+		}
+		.label{
+			cursor: pointer;
+
+			/*background-color: var(--color-s);*/
+			background-color: var(--level, #09f);
+			color: #333;
+			font-weight: bold;
+			width: 50px;
+			height: 50px;
+
+			display: flex;
+			justify-content: center;
+			align-items: center;
+
+			& span:focus {
+				outline: 1px solid #DEDEDE;				
+			}
+		}
+
+		#selector-buttons {
+			display: flex;
+			justify-content: center;
+			gap: 1rem;
+			margin-block: 1rem;
+
+			& label,
+			& button {
+				display: inline-block;
+				cursor: pointer;				
+				width: 40px;
+				height: 40px;
+				padding: 8px;
+				border-radius: 10px;
+				background-color: #222;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				transition: transform .5s ease;
+
+				&:hover{
+					transform: scale(1.1);
+					background-color: #444;
+				}
+
+			}
+
+			& svg {
+				width: 100%;
+				height: auto
+			}
+		}
+
+		#selector-items {
+			border: 1px solid #666;
+			width: 100%;
+			height: 100px;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 2px;
+
+			/*& .item-image {
+				display: inline-block;
+				width: 80px;
+				height: 80px;
+				object-fit: cover;
+				object-position: center;
+				cursor: grab;
+				background-color: white;
+			}*/
+
+			&.drag-files {
+				border-style: dashed;
+				background-color: #555;
+			}
+		}
+
+		.item-image {
+			display: inline-block;
+			width: 50px;
+			height: 50px;
+			object-fit: cover;
+			object-position: center;
+			cursor: grab;
+			background-color: white;
+
+			&.drag-preview {
+				opacity: .5;
+				pointer-events: none;
+			}
+		}
+
+	</style>
+
+	<script type="module">
+		const $ = el => document.querySelector(el)
+		const $$ = els => document.querySelectorAll(els)
+
+		const imageInput = $('#image-input')
+		const itemsSection = $('#selector-items')
+		const resetButton = $('#reset-tier-button')
+
+		function createItem(src) {
+			const imgElement = document.createElement('img')
+			//imgElement.src = eventReader.target.result
+			imgElement.src = src
+			imgElement.className = 'item-image'
+			/*Para indicarle a un elemento que puede ser arrastrable*/
+			imgElement.draggable = true
+
+			/* Para escuchar los eventos de arrastre drag*/
+			// Cuando inicia el arrastre
+			imgElement.addEventListener('dragstart', handleDragStart)
+			// Cuando termina el arrastre
+			imgElement.addEventListener('dragend', handleDragEnd)
+
+			return imgElement
+		}
+
+		let draggedElement = null
+		let sourceContainer = null
+
+		function handleDragStart(event) {
+			console.log('Drag Start', event.target)
+			draggedElement = event.target
+			sourceContainer = draggedElement.parentNode
+
+			// Para indicarle que estamos transfiriendo el src de la imagen
+			event.dataTransfer.setData('text/plain', draggedElement.src)
+		}
+
+		function handleDragEnd(event) {
+			console.log('Drag End', event.target)
+			draggedElement = null
+			sourceContainer = null
+		}
+
+		const rows = $$('.tier .row')
+		rows.forEach(row => {
+			// escuchamos el evento cuando soltamos la imagen
+			row.addEventListener('drop', handleDrop)
+			// escuchamos el evento cuando pasemos por encima la imagen
+			row.addEventListener('dragover', handleDragOver)
+			// escuchamos el evento cuando salgamos con la imagen de la fila
+			row.addEventListener('dragleave', handleDragLeave)
+		})
+
+		// Para añadir los eventos cuando se suelte en el lugar del origen osea el "input" o mejor el selector-items
+		itemsSection.addEventListener('drop', handleDrop)
+		itemsSection.addEventListener('dragover', handleDragOver)
+		itemsSection.addEventListener('dragleave', handleDragLeave)
+
+
+
+		// OJO: Siempre añadir los prevenDefault a todos los demas eventos dragover dragleave y drop porque sino el comportamiento se vuelve modificado
+
+		function handleDrop(event) {
+			event.preventDefault()
+
+			const { currentTarget, dataTransfer } = event
+
+			//console.log({data:dataTransfer.getData('text/plain')})
+
+			// Verificamos que se este arrastrando un elemento y tambien que viene de un sitio de la web como el contenedor de las imagenes
+			if(sourceContainer && draggedElement){
+				// quitamos el elemento del padre
+				sourceContainer.removeChild(draggedElement)				
+			}
+
+			if(draggedElement) {
+				// obtenemos el src de la imagen que teniamos anteriormente
+				const src = dataTransfer.getData('text/plain')
+				// creamos una nueva imagen
+				const imgElement = createItem(src)
+				// agragamos la imagen a donde se haya soltado el elemento
+				currentTarget.appendChild(imgElement)
+			}
+
+			currentTarget.classList.remove('drag-over')
+
+			currentTarget.querySelector('.drag-preview')?.remove()
+
+		}
+		function handleDragOver(event) {
+			event.preventDefault()
+
+			// Para que cuando estemos en el mismo elemento padre no se dispare este evento
+			const { currentTarget } = event
+			if(sourceContainer === currentTarget) return
+
+				currentTarget.classList.add('drag-over')
+
+			// aqui tambien podemos acceder al dataTransfer
+			const { dataTransfer } = event
+			const dragPreview = document.querySelector('.drag-preview')
+			if(draggedElement && !dragPreview){
+				// clonamos el elemento para añadir la copia pero con estilos mas opacos
+				const previewElement = draggedElement.cloneNode(true)
+				previewElement.classList.add('drag-preview')
+				currentTarget.appendChild(previewElement)
+			}
+			
+		}
+		function handleDragLeave(event) {
+			event.preventDefault()
+
+			const { currentTarget } = event
+			currentTarget.classList.remove('drag-over')
+
+			currentTarget.querySelector('.drag-preview')?.remove()
+		}
+
+
+		function useFilesToCreateItems(files) {
+			Array.from(files).forEach(file => {
+
+					// Para poder mostrar la imagen creamos un reader para que lea la imagen que tenemos cargada
+				const reader = new FileReader()
+				reader.readAsDataURL(file)
+
+					//console.log(file)
+
+				reader.onload = (eventReader) => {
+						//console.log(eventReader.target.result)
+					const imgElement = createItem(eventReader.target.result)
+
+					itemsSection.appendChild(imgElement)
+				}
+
+			})		
+		}
+
+
+		imageInput.addEventListener('change', (event) => {
+			/*
+			CON ESTE CODIGO RECUPERA UN ARCHIVO Y PARA HACERLO CON VARIOS ABAJO
+
+			const [file] = event.target.files
+
+			if(file) {
+				// Para poder mostrar la imagen creamos un reader para que lea la imagen que tenemos cargada
+				const reader = new FileReader()
+				reader.readAsDataURL(file)
+
+				//console.log(file)
+
+				reader.onload = (eventReader) => {
+					//console.log(eventReader.target.result)
+					const imgElement = createItem(eventReader.target.result)
+
+					itemsSection.appendChild(imgElement)
+				}
+
+			}
+			*/
+			const {files} = event.target
+
+			if(files && files.length > 0) {
+
+			console.log(files) // <- Esto devuelve un filelist y lo debemos convertir a un array para operar
+
+			useFilesToCreateItems(files)
+
+		}
+	})
+
+
+		resetButton.addEventListener('click', (event) => {
+			const items = $$('.tier .item-image')
+			items.forEach(item => {
+				item.remove()
+				itemsSection.appendChild(item)
+			})
+		})
+
+
+		// PARA HACER UN DRAG DROP EN EL ITEMS SECTION PARA QUE PUEDAN SOLTAR DESDE EL ESCRITORIO ARCHIVOS EN EL NAVEGADOR`
+		itemsSection.addEventListener('drop', handleDropFromDesktop)
+		itemsSection.addEventListener('dragover', handleDragOverFromDesktop)
+
+		function handleDropFromDesktop(event) {
+			event.preventDefault()
+			const { currentTarget, dataTransfer } = event
+
+			if(dataTransfer.types.includes('Files')) {
+				currentTarget.classList.remove('drag-files')
+				const { files } = dataTransfer
+				useFilesToCreateItems(files)
+			}
+
+		}
+
+		function handleDragOverFromDesktop(event) {
+			event.preventDefault()
+			const { currentTarget, dataTransfer } = event
+
+			if(dataTransfer.types.includes('Files')) {
+				currentTarget.classList.add('drag-files')
+			}
+
+			// console.log({ currentTarget, dataTransfer })
+		}
+
+
+		// PARA SACAR UNA CAPTURA DEL TIER LIST CON UNA DEPENDENCIA QUE ES HTML2CANVASPRO
+		const saveButton = $('#save-tier-button')
+
+		saveButton.addEventListener('click', () => {
+			// 1ro recuperamos el elemento que queremos guardar como imagen
+			const tierContainer = $('.tier')
+			// 2do creamos un canvas
+			const canvas = document.createElement('canvas')
+			const ctx = canvas.getContext('2d')
+
+			// importamos la libreria <- este es un import dinamico
+			import('https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.8/+esm')
+				.then(({ default: html2canvas }) => {
+					html2canvas(tierContainer).then(canvas => {						
+						ctx.drawImage(canvas,0,0)
+						// creamos una url para que se pueda descargar la iamgen del canvas
+						const imgURL = canvas.toDataURL('image/png')
+
+						// creamos un ancor para poder simular el evento de download
+						const downloadLink = document.createElement('a')
+						downloadLink.download = 'tier.png'
+						downloadLink.href = imgURL
+						downloadLink.click()
+					})
+				}) 
+
+		})
+
+
+	</script>
+</head>
+<body>
+	<header id="top-header">
+		<img src="https://tiermaker.com/images/tiermaker-logo.png" alt="tierlist">
+	</header>
+	<main class="tier">
+		<div class="row">
+			<aside class="label" style="--level: var(--color-s)">
+				<span contenteditable="true">S</span>
+			</aside>
+		</div>
+
+		<div class="row">
+			<aside class="label" style="--level: var(--color-a)">
+				<span contenteditable="true">A</span>
+			</aside>
+		</div>
+
+		<div class="row">
+			<aside class="label" style="--level: var(--color-b)">
+				<span contenteditable="true">B</span>
+			</aside>
+		</div>
+
+		<div class="row">
+			<aside class="label" style="--level: var(--color-c)">
+				<span contenteditable="true">C</span>
+			</aside>
+		</div>
+
+		<div class="row">
+			<aside class="label" style="--level: var(--color-d)">
+				<span contenteditable="true">D</span>
+			</aside>
+		</div>
+
+		<div class="row">
+			<aside class="label" style="--level: var(--color-e)">
+				<span contenteditable="true">E</span>
+			</aside>
+		</div>		
+
+	</main>
+
+	<footer id="selector">
+
+		<section id="selector-buttons">
+			<label>
+				<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-circle-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
+
+				<input accept="image/*" id="image-input" type="file" name="files" multiple hidden>
+			</label>
+
+			<button id="reset-tier-button">
+				<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-reload"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19.933 13.041a8 8 0 1 1 -9.925 -8.788c3.899 -1 7.935 1.007 9.425 4.747" /><path d="M20 4v5h-5" /></svg>
+			</button>
+
+			<button id="save-tier-button">
+				<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-camera-spark"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M11.5 20h-6.5a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v3" /><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" /></svg>
+			</button>
+		</section>
+
+		<div id="selector-items">
+			
+		</div>
+
+	</footer>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
