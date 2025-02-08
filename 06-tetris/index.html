@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tetris</title>
+    <style>
+      html {
+        /* color-scheme: dark; */
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #d7d7d7;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+          sans-serif;
+        display: grid;
+        place-content: center;
+      }
+      canvas {
+      }
+      section {
+        position: absolute;
+        inset: 0;
+        background-color: #2A2A2A;
+        display: grid;
+        place-content: center;
+        width: 100%;
+        height: 100%;
+        font-size: 4rem;
+        font-weight: bold;
+        color: white;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>Start Game</section>
+      <h1>Tetris</h1>
+      <div id="app">
+        <canvas></canvas>
+      </div>
+      <strong>Score: <span></span> </strong>
+    </main>
+
+    <script>
+      const canvas = document.querySelector("canvas");
+      const context = canvas.getContext("2d");
+
+      //11 SCORE
+      let score = 0
+      const $score = document.querySelector('span')
+
+      // 1. Inicializamos el canvas
+      // Tamaño de la pieza
+      const BLOCK_SIZE = 20;
+      // Tamaño de la pizarra
+      const BOARD_WIDTH = 14; // asi el tamaño en ancho sera de 14 espacios
+      const BOARD_HEIGHT = 30; // el tamaño de alto sera de 30
+
+      canvas.width = BLOCK_SIZE * BOARD_WIDTH;
+      canvas.height = BLOCK_SIZE * BOARD_HEIGHT;
+      // escalamos el canvas acorde al tamaño del bloque que definimos
+      // Esto escala el sistema de coordenadas del canvas, de modo que cada unidad lógica corresponda a 20 píxeles físicos (el tamaño de cada bloque).
+      context.scale(BLOCK_SIZE, BLOCK_SIZE);
+
+      // Board 30 filas 14 columnas
+      let board = Array.from({ length: BOARD_HEIGHT }, () =>
+        new Array(BOARD_WIDTH).fill(0)
+      );
+
+      //board[BOARD_HEIGHT - 1] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1];
+      //console.log(board);
+
+      // 4. La pieza player
+      const piece = {
+        position: { x: 2, y: 2 },
+        shape: [
+          [1, 1],
+          [1, 1],
+        ],
+      };
+
+      // 9. Random Pieces
+      const PIECES = [
+        [
+          [1, 1],
+          [1, 1],
+        ],
+        [
+          [1,1,1,1]
+        ],
+        [
+          [0,1,0],
+          [1,1,1],
+        ],
+        [
+          [1,1,0],
+          [0,1,1]
+        ],
+        [
+          [1,0],
+          [1,0],
+          [1,1]
+        ]
+      ]
+
+      // 5. Checkear si colisiona
+      function checkCollision() {
+        return piece.shape.find((row,y) => {
+          return row.find((value,x) => {            
+            return (
+              value !== 0 // <- Existe un valor en esa casilla
+              && 
+              // se coloca ?. porque cuando baja fuera del tablero existira una posicion del tablero que sera undefined entonces la parte de la derecha nose evaluara sino es diferente a undefined lo de la izquierda
+              board[y + piece.position.y]?.[x + piece.position.x] !== 0 // <- Se Puede mover a esa posicion la pieza en el tablero
+            )
+          })
+        })
+      }
+      
+      // 6. Solidificar las piezas
+      function solidifyPiece() {
+        piece.shape.forEach((row,y)=>{
+          row.forEach((value,x) => {
+            if (value === 1) {
+              board[y+piece.position.y][x+piece.position.x] = 1
+            }
+          })
+        })
+
+        // GET random new shape
+        piece.shape = PIECES[Math.floor(Math.random()*PIECES.length)]
+        //  RESET position        
+        //piece.position.x = 0
+        //piece.position.y = 0
+        piece.position.x = Math.floor(BOARD_WIDTH/2 -2)
+        piece.position.y = 0
+
+        // gameover
+        if(checkCollision()){
+          window.alert('GAME OVER!')
+          board.forEach((row) => row.fill(0))
+          score = 0;
+        }
+      }
+
+      // 7. Verificar y Eliminar filas cuando se solidifique
+      function removeRows() {
+        const rowsToRemove = []
+        board.forEach((row,y) => {
+          if (row.every((value,x) => value === 1)) {
+            rowsToRemove.push(y)            
+          }
+        })
+
+        rowsToRemove.forEach(y => {
+          board.splice(y,1)
+          const newRow = new Array(BOARD_WIDTH).fill(0)
+          board.unshift(newRow)
+          score += 10
+        })
+
+      }
+
+
+      // 2. Game Loop
+      function draw() {
+        context.fillStyle = "#000";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujamos el board
+        board.forEach((row, y) => {
+          row.forEach((value, x) => {
+            if (value === 1) {
+              context.fillStyle = "yellow";
+              context.fillRect(x, y, 1, 1);
+            }
+          });
+        });
+
+        // Dibujamos la pieza
+        piece.shape.forEach((row, y) => {
+          row.forEach((value, x) => {
+            if (value) {                                         
+              context.fillStyle = "red";
+              context.fillRect(
+                x + piece.position.x,
+                y + piece.position.y,
+                1,
+                1
+              );
+            }
+          });
+        });
+
+        $score.innerText = score;
+        
+      }
+
+      // 2. Game Loop
+      /*function update() {
+        draw();
+        window.requestAnimationFrame(update);
+      }*/
+
+      // 8. Auto drop
+      let dropCounter = 0
+      let lastTime = 0
+
+      function update(time = 0) {
+        const deltaTime = time - lastTime
+        lastTime = time
+
+        dropCounter += deltaTime
+
+        if(dropCounter > 1000){
+          piece.position.y++
+          dropCounter = 0
+
+          if(checkCollision()){
+            piece.position.y--
+            solidifyPiece()
+            removeRows()
+          }
+        }
+
+
+        draw();
+        window.requestAnimationFrame(update);
+      }
+
+      window.addEventListener("keydown", (event) => {
+        const { key } = event;
+        if (key === "ArrowLeft") {
+          piece.position.x--;
+          
+          if(checkCollision()){
+            piece.position.x++;
+          }
+        }
+        if (key === "ArrowRight") {
+          piece.position.x++;
+
+          if(checkCollision()){
+            piece.position.x--;
+          }
+        }
+        if (key === "ArrowDown") {
+          piece.position.y++;
+
+          if(checkCollision()){
+            piece.position.y--;
+
+            solidifyPiece()
+            removeRows()
+            //console.log(board);
+            
+          }
+        }
+
+        // Rotar las pieces
+        if(key === 'ArrowUp') {
+          let rotated = new Array(piece.shape[piece.shape.length-1].length).fill().map(el => (new Array()))
+          for (let i = 0; i < piece.shape[0].length; i++) {
+            for (let j = piece.shape.length -1 ; j >= 0; j--) {
+              rotated[i].push(piece.shape[j][i])
+            }
+          }
+
+          const previousShape = piece.shape
+
+          piece.shape = rotated
+          if(checkCollision()){
+            piece.shape = previousShape
+          }
+        }
+      });
+
+      //update();
+
+
+      // INIT GAME
+      const $start = document.querySelector('section')
+
+      $start.addEventListener('click', (e) => {
+
+        const audio = new window.Audio('Tetris.mp3')
+        audio.volume = 0.5
+        audio.play()
+
+        $start.remove()
+        update();
+      })
+
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+

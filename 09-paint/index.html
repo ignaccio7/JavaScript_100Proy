@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Paint</title>
+
+	<style>
+		*,*::before,*::after {
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Arial', sans-serif;
+			background: #222;
+			padding: 1rem;
+			max-width: 500px;
+			margin: 0 auto;
+		}
+
+		h1 {
+			color: #E7B120;
+		}
+
+		.container {
+			border: 1px solid #ccc;
+		}
+
+		header {
+			background-color: silver;
+
+			button {
+				background-color: transparent;
+				border: 0;
+				outline: 0;
+				padding: .5rem;
+
+				&:hover {
+					box-shadow: 1px 1px black,
+						inset 1px 1px  white,
+						inset -1px -1px  gray;
+				}
+			}
+		}
+
+		canvas {
+			background-color: white;
+		}
+
+
+	</style>
+
+</head>
+
+<script type="module">
+	// CONSTANTS
+	const MODES = {
+		DRAW: 'draw',
+		ERASE: 'erase',
+		RECTANGLE: 'rectangle',
+		ELLIPSE: 'ellipse',
+		PICKER: 'picker',
+	}
+
+	// UTILITIES
+	const $ = selector => document.querySelector(selector)
+	const $$ = selector => document.querySelectorAll(selector)
+
+	// ELEMENTS
+	const $canvas = $('#canvas')
+
+	const ctx = $canvas.getContext('2d')
+
+	// STATE
+	let isDrawing = false
+	let startX, startY
+	let lastX = 0
+	let lastY = 0
+	let mode = MODES.DRAW
+
+	// EVENTS
+	$ .addEventListener('mousedown', startDrawing)
+	$canvas.addEventListener('mousemove', draw)
+	$canvas.addEventListener('mouseup', stopDrawing)
+	$canvas.addEventListener('mouseleave', stopDrawing)	
+
+
+	// METHODS
+	function startDrawing(event) {
+		isDrawing = true
+		//console.log(event)
+
+		const { offsetX, offsetY } = event;
+
+		// guardar las coordenadas
+		/*startX = offsetX
+		startY = offsetY*/
+		[startX, startY] = [offsetX, offsetY];
+		[lastX, lastY] = [offsetX, offsetY];
+
+		console.log({ startX, startY, lastX, lastY })
+	}
+
+	function draw(event) {
+		
+	}
+
+	function stopDrawing(event) {
+		
+	}
+
+
+
+
+</script>
+
+<body>
+
+	<h1>Paint.js</h1>
+
+	<div class="container">
+		<header>
+			<button>File</button>
+			<button>Edit</button>
+			<button>View</button>
+			<button>Image</button>
+			<button>Options</button>
+			<button>Help</button>
+		</header>
+		<main>
+			<canvas id="canvas" width="300" height="200"></canvas>
+		</main>
+		<footer>
+			<input type="color" id="color-picker">
+		</footer>
+	</div>
+	
+</body>
+</html>
